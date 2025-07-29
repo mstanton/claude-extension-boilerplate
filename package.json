@@ -1,0 +1,98 @@
+{
+  "name": "claude-extension-boilerplate",
+  "version": "1.0.0",
+  "description": "A boilerplate for creating Claude Desktop Extensions with MCP servers",
+  "main": "server/index.js",
+  "type": "module",
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/claude-extension-boilerplate"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/claude-extension-boilerplate/issues"
+  },
+  "homepage": "https://github.com/your-username/claude-extension-boilerplate#readme",
+  "keywords": [
+    "claude",
+    "desktop-extension",
+    "mcp",
+    "ai",
+    "automation",
+    "boilerplate"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "scripts": {
+    "init": "dxt init",
+    "dev": "node --watch server/index.js",
+    "build": "node scripts/build.js",
+    "pack": "dxt pack",
+    "validate": "node scripts/validate.js && dxt validate",
+    "test": "node --test test/**/*.test.js",
+    "test-local": "node scripts/test-local.js",
+    "test-packed": "node scripts/test-packed.js",
+    "lint": "eslint server/ scripts/ --fix",
+    "format": "prettier --write .",
+    "clean": "rimraf dist/ *.dxt",
+    "prepack": "npm run validate && npm run build",
+    "postpack": "echo 'Extension packaged successfully! Test with: npm run test-packed'",
+    "prepublish": "npm run pack",
+    "start": "node server/index.js",
+    "debug": "node --inspect server/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@anthropic-ai/dxt": "^0.1.0",
+    "@types/node": "^20.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "server/",
+    "manifest.json",
+    "icon.png",
+    "README.md",
+    "LICENSE"
+  ],
+  "directories": {
+    "lib": "server",
+    "doc": "docs",
+    "test": "test"
+  },
+  "config": {
+    "extension_name": "your-extension-name",
+    "build_dir": "dist",
+    "server_entry": "server/index.js"
+  },
+  "eslintConfig": {
+    "env": {
+      "node": true,
+      "es2022": true
+    },
+    "extends": [
+      "eslint:recommended"
+    ],
+    "parserOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "rules": {
+      "no-unused-vars": "warn",
+      "no-console": "off"
+    }
+  },
+  "prettier": {
+    "semi": true,
+    "singleQuote": true,
+    "tabWidth": 2,
+    "trailingComma": "es5"
+  }
+}

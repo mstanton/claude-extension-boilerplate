@@ -1,0 +1,124 @@
+{
+  "dxt_version": "0.1",
+  "name": "python-extension-example",
+  "display_name": "Python Extension Example",
+  "version": "1.0.0",
+  "description": "A comprehensive example of a Python-based Claude Desktop Extension using MCP",
+  "long_description": "This extension demonstrates how to build a Claude Desktop Extension using Python. It includes file analysis tools, system information gathering, and multilingual greeting capabilities. Perfect as a starting point for Python developers looking to extend Claude Desktop's functionality.",
+  
+  "author": {
+    "name": "Extension Developer",
+    "email": "developer@example.com",
+    "url": "https://github.com/developer"
+  },
+  
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/developer/python-extension-example"
+  },
+  
+  "homepage": "https://github.com/developer/python-extension-example",
+  "documentation": "https://github.com/developer/python-extension-example/wiki",
+  "support": "https://github.com/developer/python-extension-example/issues",
+  "license": "MIT",
+  
+  "icon": "icon.png",
+  "keywords": ["python", "files", "analysis", "system-info", "multilingual"],
+  
+  "server": {
+    "type": "python",
+    "entry_point": "server/main.py",
+    "mcp_config": {
+      "command": "python",
+      "args": ["${__dirname}/server/main.py"],
+      "env": {
+        "PYTHONPATH": "${__dirname}:${__dirname}/lib",
+        "ALLOWED_PATHS": "${user_config.allowed_directories}",
+        "ENABLE_LOGGING": "${user_config.enable_logging}",
+        "LANGUAGE_PREFERENCE": "${user_config.default_language}"
+      },
+      "platforms": {
+        "win32": {
+          "command": "python.exe"
+        },
+        "darwin": {
+          "command": "python3"
+        },
+        "linux": {
+          "command": "python3"
+        }
+      }
+    }
+  },
+  
+  "tools": [
+    {
+      "name": "python_hello",
+      "description": "Multilingual greeting tool"
+    },
+    {
+      "name": "python_file_analyzer", 
+      "description": "Analyze files and directories"
+    },
+    {
+      "name": "python_system_info",
+      "description": "Get Python and system information"
+    }
+  ],
+  
+  "tools_generated": true,
+  
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "python": ">=3.8.0"
+    }
+  },
+  
+  "user_config": {
+    "allowed_directories": {
+      "type": "directory",
+      "title": "Allowed Directories",
+      "description": "Directories this extension can access for file analysis",
+      "multiple": true,
+      "required": true,
+      "default": ["${HOME}/Documents", "${HOME}/Desktop"]
+    },
+    
+    "default_language": {
+      "type": "string",
+      "title": "Default Language",
+      "description": "Default language for greetings and messages",
+      "enum": ["en", "es", "fr", "de"],
+      "default": "en",
+      "required": false
+    },
+    
+    "enable_logging": {
+      "type": "boolean", 
+      "title": "Enable Debug Logging",
+      "description": "Enable detailed logging for troubleshooting",
+      "default": false,
+      "required": false
+    },
+    
+    "max_file_size_mb": {
+      "type": "number",
+      "title": "Maximum File Size (MB)",
+      "description": "Maximum file size to analyze in megabytes",
+      "default": 1,
+      "min": 0.1,
+      "max": 10,
+      "required": false
+    }
+  },
+  
+  "permissions": {
+    "file_system": {
+      "read": true,
+      "write": false,
+      "create": false
+    }
+  }
+}

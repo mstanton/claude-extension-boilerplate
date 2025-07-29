@@ -1,0 +1,375 @@
+name: Build and Test Claude Desktop Extension
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ created ]
+
+jobs:
+  test:
+    name: Test Extension
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [16.x, 18.x, 20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linter
+      run: npm run lint
+
+    - name: Validate manifest
+      run: npm run validate
+
+    - name: Run tests
+      run: npm test
+
+    - name: Build extension
+      run: npm run build
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      if: matrix.os == 'ubuntu-latest' && matrix.node-version == '18.x'
+      with:
+        name: build-artifacts
+        path: dist/
+        retention-days: 7
+
+  validate-python:
+    name: Validate Python Example
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install Python dependencies
+      run: |
+        cd examples/python
+        pip install -r requirements.txt
+
+    - name: Validate Python server
+      run: |
+        cd examples/python
+        python -m py_compile server/main.py
+
+    - name: Test Python server (basic syntax)
+      run: |
+        cd examples/python
+        python -c "
+        import sys
+        sys.path.append('server')
+        try:
+            import main
+            print('✓ Python server imports successfully')
+        except Exception as e:
+            print(f'✗ Python server import failed: {e}')
+            sys.exit(1)
+        "
+
+  package:
+    name: Package Extension
+    needs: [test, validate-python]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install DXT CLI
+      run: npm install -g @anthropic-ai/dxt
+
+    - name: Build and package
+      run: |
+        npm run build
+        npm run pack
+
+    - name: Upload packaged extension
+      uses: actions/upload-artifact@v4
+      with:
+        name: packaged-extension
+        path: '*.dxt'
+        retention-days: 30
+
+    - name: Generate build info
+      run: |
+        echo "Build Date: $(date)" > build-info.txt
+        echo "Commit: ${{ github.sha }}" >> build-info.txt
+        echo "Branch: ${{ github.ref_name }}" >> build-info.txt
+        echo "Node Version: $(node --version)" >> build-info.txt
+
+    - name: Upload build info
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-info
+        path: build-info.txt
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run security audit
+      run: npm audit --audit-level=moderate
+
+    - name: Check for secrets in manifest
+      run: |
+        if grep -i -E "(password|secret|api.?key|token)" manifest.json; then
+          echo "❌ Potential secrets found in manifest.json"
+          echo "Ensure sensitive data is in user_config with 'sensitive': true"
+          exit 1
+        else
+          echo "✅ No obvious secrets found in manifest.json"
+        fi
+
+    - name: Validate file permissions
+      run: |
+        # Check that no files have execute permissions unless needed
+        find . -type f -name "*.js" -executable -not -path "./node_modules/*" -not -path "./.git/*" | while read file; do
+          echo "⚠️ JavaScript file has execute permission: $file"
+        done
+
+  documentation:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+
+    - name: Check README
+      run: |
+        if [ ! -f README.md ]; then
+          echo "❌ README.md is missing"
+          exit 1
+        fi
+        
+        # Check for required sections
+        if ! grep -q "## Installation" README.md; then
+          echo "⚠️ README.md should include Installation section"
+        fi
+        
+        if ! grep -q "## Usage" README.md; then
+          echo "⚠️ README.md should include Usage section"
+        fi
+        
+        echo "✅ Documentation checks passed"
+
+    - name: Validate manifest documentation fields
+      run: |
+        node -e "
+        const manifest = require('./manifest.json');
+        const requiredDocs = ['description', 'author'];
+        const recommendedDocs = ['long_description', 'homepage', 'documentation', 'support'];
+        
+        let hasErrors = false;
+        
+        for (const field of requiredDocs) {
+          if (!manifest[field]) {
+            console.error(\`❌ Missing required documentation field: \${field}\`);
+            hasErrors = true;
+          }
+        }
+        
+        for (const field of recommendedDocs) {
+          if (!manifest[field]) {
+            console.warn(\`⚠️ Missing recommended documentation field: \${field}\`);
+          }
+        }
+        
+        if (hasErrors) process.exit(1);
+        console.log('✅ Documentation fields validation passed');
+        "
+
+  compatibility-test:
+    name: Cross-Platform Compatibility
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Test platform-specific configurations
+      shell: bash
+      run: |
+        node -e "
+        const manifest = require('./manifest.json');
+        const platform = process.platform;
+        
+        console.log(\`Testing on platform: \${platform}\`);
+        
+        if (manifest.server?.mcp_config?.platforms) {
+          const platformConfig = manifest.server.mcp_config.platforms[platform];
+          if (platformConfig) {
+            console.log(\`✅ Platform-specific config found for \${platform}\`);
+            console.log(JSON.stringify(platformConfig, null, 2));
+          } else {
+            console.log(\`⚠️ No platform-specific config for \${platform}\`);
+          }
+        }
+        
+        // Test environment variable expansion
+        const envVars = manifest.server?.mcp_config?.env || {};
+        for (const [key, value] of Object.entries(envVars)) {
+          if (typeof value === 'string' && value.includes('\${')) {
+            console.log(\`Environment variable template: \${key} = \${value}\`);
+          }
+        }
+        "
+
+    - name: Validate path separators
+      shell: bash
+      run: |
+        # Check for hardcoded path separators that might cause issues
+        if grep -r "/" server/ --include="*.js" | grep -v "://"; then
+          echo "⚠️ Found potential hardcoded forward slashes in server code"
+          echo "Consider using path.join() for cross-platform compatibility"
+        fi
+
+  release:
+    name: Create Release
+    needs: [test, validate-python, package, security-scan]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install DXT CLI
+      run: npm install -g @anthropic-ai/dxt
+
+    - name: Build and package for release
+      run: |
+        npm run build
+        npm run pack
+
+    - name: Get package info
+      id: package
+      run: |
+        echo "name=$(node -p "require('./package.json').name")" >> $GITHUB_OUTPUT
+        echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+    - name: Upload release assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./${{ steps.package.outputs.name }}-${{ steps.package.outputs.version }}.dxt
+        asset_name: ${{ steps.package.outputs.name }}-${{ steps.package.outputs.version }}.dxt
+        asset_content_type: application/zip
+
+    - name: Comment on release
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.payload.release.id,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `🎉 Release build completed successfully!
+            
+            **Installation Instructions:**
+            1. Download the \`.dxt\` file from the release assets
+            2. Open Claude Desktop Settings
+            3. Drag and drop the \`.dxt\` file into the Extensions section
+            4. Click "Install" and configure as needed
+            
+            **What's included:**
+            - Cross-platform tested on Windows, macOS, and Linux
+            - Security scanned and validated
+            - Full documentation and examples
+            
+            Happy extending! 🚀`
+          })
+
+  notify:
+    name: Notify Build Status
+    needs: [test, validate-python, package, security-scan, documentation, compatibility-test]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Notify Success
+      if: needs.test.result == 'success' && needs.package.result == 'success'
+      run: |
+        echo "🎉 All builds and tests passed successfully!"
+        echo "Extension is ready for distribution."
+
+    - name: Notify Failure
+      if: needs.test.result == 'failure' || needs.package.result == 'failure'
+      run: |
+        echo "❌ Build or tests failed. Please check the logs above."
+        echo "Fix the issues before proceeding with distribution."
+        exit 1

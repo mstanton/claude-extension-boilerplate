@@ -1,0 +1,154 @@
+{
+  "dxt_version": "0.1",
+  "name": "your-extension-name",
+  "display_name": "Your Awesome Extension",
+  "version": "1.0.0",
+  "description": "A brief, compelling description of what your extension does",
+  "long_description": "A detailed description that explains the extension's functionality, use cases, and key features. This can include multiple paragraphs and supports basic markdown formatting.",
+  
+  "author": {
+    "name": "Your Name",
+    "email": "your.email@example.com",
+    "url": "https://your-website.com"
+  },
+  
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/your-extension"
+  },
+  
+  "homepage": "https://your-extension-website.com",
+  "documentation": "https://docs.your-extension.com",
+  "support": "https://github.com/your-username/your-extension/issues",
+  "license": "MIT",
+  
+  "icon": "icon.png",
+  "screenshots": [
+    "assets/screenshots/main-interface.png",
+    "assets/screenshots/configuration.png"
+  ],
+  
+  "keywords": ["productivity", "automation", "api", "files", "development"],
+  
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {
+        "NODE_ENV": "production",
+        "API_KEY": "${user_config.api_key}",
+        "ALLOWED_PATHS": "${user_config.allowed_paths}",
+        "MAX_FILE_SIZE": "${user_config.max_file_size}"
+      },
+      "platforms": {
+        "win32": {
+          "command": "node.exe",
+          "env": {
+            "TEMP_DIR": "${TEMP}"
+          }
+        },
+        "darwin": {
+          "env": {
+            "TEMP_DIR": "${TMPDIR}"
+          }
+        },
+        "linux": {
+          "env": {
+            "TEMP_DIR": "/tmp"
+          }
+        }
+      }
+    }
+  },
+  
+  "tools": [
+    {
+      "name": "example_tool",
+      "description": "An example tool that demonstrates basic functionality"
+    },
+    {
+      "name": "file_processor",
+      "description": "Process files in allowed directories"
+    }
+  ],
+  
+  "prompts": [
+    {
+      "name": "analyze_data",
+      "description": "Analyze data with specific parameters",
+      "arguments": ["data_type", "analysis_depth"],
+      "text": "Analyze the following ${arguments.data_type} data with ${arguments.analysis_depth} depth analysis."
+    }
+  ],
+  
+  "tools_generated": true,
+  
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=16.0.0"
+    }
+  },
+  
+  "user_config": {
+    "api_key": {
+      "type": "string",
+      "title": "API Key",
+      "description": "Your API key for external service authentication",
+      "sensitive": true,
+      "required": false,
+      "placeholder": "Enter your API key here..."
+    },
+    
+    "allowed_paths": {
+      "type": "directory",
+      "title": "Allowed Directories",
+      "description": "Directories this extension can access and modify",
+      "multiple": true,
+      "required": true,
+      "default": ["${HOME}/Documents", "${HOME}/Desktop"]
+    },
+    
+    "max_file_size": {
+      "type": "number",
+      "title": "Maximum File Size (MB)",
+      "description": "Maximum file size to process in megabytes",
+      "default": 10,
+      "min": 1,
+      "max": 100,
+      "required": false
+    },
+    
+    "enable_logging": {
+      "type": "boolean",
+      "title": "Enable Debug Logging",
+      "description": "Enable detailed logging for debugging purposes",
+      "default": false,
+      "required": false
+    },
+    
+    "output_format": {
+      "type": "string",
+      "title": "Output Format",
+      "description": "Preferred output format for results",
+      "default": "json",
+      "enum": ["json", "xml", "yaml", "text"],
+      "required": false
+    }
+  },
+  
+  "permissions": {
+    "file_system": {
+      "read": true,
+      "write": true,
+      "create": true
+    },
+    "network": {
+      "outbound": true,
+      "domains": ["api.example.com", "cdn.example.com"]
+    }
+  }
+}
